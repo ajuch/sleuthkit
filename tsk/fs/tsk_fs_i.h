@@ -182,6 +182,8 @@ extern "C" {
     /* Specific file system routines */
     extern TSK_FS_INFO *ext2fs_open(TSK_IMG_INFO *, TSK_OFF_T,
         TSK_FS_TYPE_ENUM, uint8_t);
+    extern TSK_FS_INFO *btrfs_tsk_open(TSK_IMG_INFO *, TSK_OFF_T,
+        TSK_FS_TYPE_ENUM, uint8_t);
     extern TSK_FS_INFO *fatfs_open(TSK_IMG_INFO *, TSK_OFF_T,
         TSK_FS_TYPE_ENUM, uint8_t);
     extern TSK_FS_INFO *ffs_open(TSK_IMG_INFO *, TSK_OFF_T,
