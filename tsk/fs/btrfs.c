@@ -1,15 +1,15 @@
 /*
-** btrfs.c
-** The  Sleuth Kit
-**
-** Main source file of the Btrfs implementation for TSK
-**
-** Andreas Juch [andreas.juch@gmail.com]
-** Copyright (c) 2013-1014 Andreas Juch
-**
-** This software is distributed under the Common Public License 1.0
-**
-*/
+ ** btrfs.c
+ ** The  Sleuth Kit
+ **
+ ** Main source file of the Btrfs implementation for TSK
+ **
+ ** Andreas Juch [andreas.juch@gmail.com]
+ ** Copyright (c) 2013-1014 Andreas Juch
+ **
+ ** This software is distributed under the Common Public License 1.0
+ **
+ */
 
 /**
  * \file btrfs.c
@@ -151,11 +151,9 @@ btrfs_resolve_logical_address(BTRFS_INFO * btrfs_info,
                     return stripe_offset + (logical_address - key_offset);
                 }
             }
-            fprintf(stderr, "couldn't resolve address");
             return -1;
         }
     }
-    fprintf(stderr, "couldn't resolve address");
     return -1;
 }
 
@@ -717,11 +715,11 @@ btrfs_cmp_func_exact(btrfs_key * k1, btrfs_key * k2) {
  */
 int
 btrfs_cmp_func_extent_tree(btrfs_key * k1, btrfs_key * k2) {
-    if (k1->item_type == k2->item_type && k1->object_id >= k2->object_id
-            && k1->object_id <= (k2->object_id + k2->offset)) {
+    if (k1->item_type == k2->item_type &&
+            k1->object_id <= k2->object_id <= (k1->object_id + k1->offset)) {
         return 0;
     } else {
-        return btrfs_cmp_func_exact(k1, k2);
+        return -1;
     }
 }
 
@@ -795,6 +793,12 @@ btrfs_tree_search(BTRFS_INFO * btrfs_info,
             }
             btrfs_key current_key = btrfs_io_read_key_pa(btrfs_info,
                     physical_end_of_header + (i * STRUCT_ITEM_SIZE));
+            if (verbose) {
+                btrfs_io_print_key(buf, &current_key);
+                printf("current key: %s", buf);
+                btrfs_io_print_key(buf, key);
+                printf("comparing it to %s", buf);
+            }
             int ret = cmp(&current_key, key);
             if (ret == 0) {
                 btrfs_item it = btrfs_io_read_item_pa(btrfs_info,
@@ -824,6 +828,12 @@ btrfs_tree_search(BTRFS_INFO * btrfs_info,
             }
             btrfs_key current_key = btrfs_io_read_key_pa(btrfs_info,
                     physical_end_of_header + (i * STRUCT_BLOCK_PTR_SIZE));
+            if (verbose) {
+                btrfs_io_print_key(buf, &current_key);
+                printf("current key: %s", buf);
+                btrfs_io_print_key(buf, key);
+                printf("comparing it to %s", buf);
+            }
             int ret = cmp(&current_key, key);
             if (ret == 0) {
                 // the current key matches the search key, so this is the right branch.
@@ -1493,26 +1503,49 @@ btrfs_tsk_block_getflags(TSK_FS_INFO * fs_info, TSK_DADDR_T a_addr) {
     uint64_t log_addr =
             btrfs_resolve_logical_address(btrfs_info, phys_addr);
 
+    char buf[1024] = "";
+
     if (log_addr == -1) {
         return TSK_FS_BLOCK_FLAG_UNALLOC;
     } else {
-        btrfs_key k = btrfs_create_key(log_addr, ITEM_TYPE_EXTENT_ITEM, 0);
-        btrfs_tree_search_result r = btrfs_tree_search(btrfs_info, &k,
-                &(btrfs_info->extent_tree), 0, &btrfs_cmp_func_extent_tree);
-        if (r.found) {
+        struct btrfs_tree_list_result_head tlr;
+        TAILQ_INIT(&tlr);
+        btrfs_tree_list(btrfs_info, &(btrfs_info->extent_tree), &tlr);
+        struct btrfs_tree_list_result_s *iter;
+
+        int found = FALSE;
+        btrfs_extent_item ei = {};
+
+        TAILQ_FOREACH(iter, &tlr, pointers) {
+            if (iter->key.item_type == ITEM_TYPE_EXTENT_ITEM
+                    && (iter->key.object_id <= log_addr
+                    && log_addr <=
+                    (iter->key.object_id + iter->key.offset))) {
+                found = TRUE;
+                btrfs_extent_item ei2 =
+                        btrfs_io_read_extent_item_pa(btrfs_info,
+                        iter->physical_address, iter->data_size);
+                memcpy(&ei, &ei2, iter->data_size);
+                break;
+            }
+        }
+
+        btrfs_tree_list_result_free(&tlr);
+
+        if (found) {
             btrfs_extent_item ei;
-            btrfs_io_parse_extent_item(r.data, &ei);
-            char buf[1024] = "";
-            free(r.data);
+
             if (ei.flags == EXTENT_ITEM_TREE_BLOCK) {
                 return TSK_FS_BLOCK_FLAG_ALLOC | TSK_FS_BLOCK_FLAG_META;
             } else if (ei.flags == EXTENT_ITEM_DATA) {
                 return TSK_FS_BLOCK_FLAG_ALLOC | TSK_FS_BLOCK_FLAG_CONT;
             } else {
-                btrfs_io_print_extent_item(buf, &ei);
-                printf("%s\n", buf);
-                printf("unknown code %" PRIu64 "\n", ei.flags);
-                return -1;
+                if (tsk_verbose) {
+                    btrfs_io_print_extent_item(buf, &ei);
+                    printf("%s\n", buf);
+                    printf("unknown code %" PRIu64 "\n", ei.flags);
+                }
+                return TSK_FS_BLOCK_FLAG_ALLOC;
             }
         } else {
             return TSK_FS_BLOCK_FLAG_UNALLOC;
@@ -1637,7 +1670,8 @@ btrfs_tsk_load_attrs(TSK_FS_FILE * fs_file) {
     btrfs_inode_mapping *mapping = btrfs_inode_resolve(btrfs_info,
             fs_file->meta->addr);
     if (tsk_verbose) {
-        tsk_fprintf(stderr, "inode info: virtual: %lu real: %lu subvol: %lu",
+        tsk_fprintf(stderr,
+                "inode info: virtual: %lu real: %lu subvol: %lu",
                 fs_file->meta->addr, mapping->inode_nr, mapping->subvolume_id);
     }
 
@@ -1667,8 +1701,9 @@ btrfs_tsk_load_attrs(TSK_FS_FILE * fs_file) {
             tsk_fprintf(stderr, "found extent data: %s\n", buf);
             btrfs_io_print_key(buf, &iter->key);
             tsk_fprintf(stderr, "former extent data's key: %s\n", buf);
-            tsk_fprintf(stderr, "extent data physical addr: %" PRIu64 " size: %" PRIu64 "\n",
-                    iter->physical_address, iter->data_size);
+            tsk_fprintf(stderr,
+                    "extent data physical addr: %" PRIu64 " size: %" PRIu64
+                    "\n", iter->physical_address, iter->data_size);
         }
 
         if (ed.type == 0) {
@@ -1729,7 +1764,8 @@ btrfs_tsk_load_attrs(TSK_FS_FILE * fs_file) {
             } else {
                 // inside a file, add the offset
                 if (tsk_verbose) {
-                    tsk_fprintf(stderr, "offset (blocks) inside file %" PRIu64 "\n",
+                    tsk_fprintf(stderr,
+                            "offset (blocks) inside file %" PRIu64 "\n",
                             offset);
                 }
 
@@ -1758,7 +1794,8 @@ btrfs_convert_extent_data_to_data_run(BTRFS_INFO * btrfs_info,
     uint64_t extent_phys_addr = btrfs_resolve_logical_address(btrfs_info,
             ed->extent_logical_address);
     if (tsk_verbose) {
-        tsk_fprintf(stderr, "file contents la %" PRIu64 ", pa %" PRIu64 "\n",
+        tsk_fprintf(stderr,
+                "file contents la %" PRIu64 ", pa %" PRIu64 "\n",
                 ed->extent_logical_address, extent_phys_addr);
     }
     if (extent_phys_addr == -1 && tsk_verbose) {
@@ -1769,8 +1806,8 @@ btrfs_convert_extent_data_to_data_run(BTRFS_INFO * btrfs_info,
     uint64_t data_len_blocks = data_len_blocks = data_len / block_size;
     if (tsk_verbose) {
         tsk_fprintf(stderr, "extent_phys_start_addr: %" PRIu64
-                " extent_size: %" PRIu64 " offset: %" PRIu64 "\n", data_start_addr,
-                data_len, offset);
+                " extent_size: %" PRIu64 " offset: %" PRIu64 "\n",
+                data_start_addr, data_len, offset);
     }
     if ((data_len % block_size) != 0) {
         data_len_blocks++;
@@ -1797,7 +1834,8 @@ btrfs_convert_extent_data_to_data_run(BTRFS_INFO * btrfs_info,
     data_run->offset = offset;
 
     if (tsk_verbose) {
-        fprintf(stderr, "btrfs_convert_extent_data_to_data_run finished \n");
+        fprintf(stderr,
+                "btrfs_convert_extent_data_to_data_run finished \n");
     }
     return data_run;
 }

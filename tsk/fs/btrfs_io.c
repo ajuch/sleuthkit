@@ -1,15 +1,15 @@
 /*
-** btrfs_io.c
-** The  Sleuth Kit
-**
-** I/O utility methods for Btrfs.
-**
-** Andreas Juch [andreas.juch@gmail.com]
-** Copyright (c) 2013-1014 Andreas Juch
-**
-** This software is distributed under the Common Public License 1.0
-**
-*/
+ ** btrfs_io.c
+ ** The  Sleuth Kit
+ **
+ ** I/O utility methods for Btrfs.
+ **
+ ** Andreas Juch [andreas.juch@gmail.com]
+ ** Copyright (c) 2013-1014 Andreas Juch
+ **
+ ** This software is distributed under the Common Public License 1.0
+ **
+ */
 
 /**
  * \file btrfs_io.c
@@ -267,25 +267,22 @@ btrfs_io_parse_extent_item(char *data, btrfs_extent_item * i) {
         // TREE BLOCK
         off += btrfs_io_parse_key((data + off), (&i->key));
         off = btrfs_io_read_field(data, (&i->level), off, 0x1);
-    }
-    // read the inline refs.
-    i->inline_refs =
-            tsk_malloc(i->refcount * sizeof (btrfs_extent_item_inline_ref));
-    int j;
-    for (j = 0; j < i->refcount; j++) {
-        btrfs_extent_item_inline_ref inlref;
-        uint8_t type;
-        off = btrfs_io_read_field(data, &type, off, 0x1);
-        fprintf(stderr, "found inline ref of type %d\n", type);
-        if (type == INLINE_EXTENT_DATA_REF) {
-            off =
-                    btrfs_io_read_field(data, (&inlref.data), off,
-                    STRUCT_EXTENT_DATA_REF_SIZE);
-        } else {
-            fprintf(stderr, "no matching type\n");
+    } else if (i->flags == EXTENT_ITEM_DATA) {
+        // read the inline refs.
+        i->inline_refs =
+                tsk_malloc(i->refcount * sizeof (btrfs_extent_item_inline_ref));
+        int j;
+        for (j = 0; j < i->refcount; j++) {
+            btrfs_extent_item_inline_ref inlref;
+            uint8_t type;
+            off = btrfs_io_read_field(data, &type, off, 0x1);
+            if (type == INLINE_EXTENT_DATA_REF) {
+                off =
+                        btrfs_io_read_field(data, (&inlref.data), off,
+                        STRUCT_EXTENT_DATA_REF_SIZE);
+            }
         }
     }
-    fprintf(stderr, "parse extent item offset at end %lu \n", off);
     return off;
 }
 
@@ -624,25 +621,25 @@ btrfs_io_print_item(char *buffer, btrfs_item * i) {
 
 void
 btrfs_io_print_chunk_type(char *buffer, uint64_t type) {
-    if((type & CHUNK_TYPE_DATA) == CHUNK_TYPE_DATA) {
+    if ((type & CHUNK_TYPE_DATA) == CHUNK_TYPE_DATA) {
         strcat(buffer, "DATA");
     }
-    if((type & CHUNK_TYPE_SYSTEM) == CHUNK_TYPE_SYSTEM) {
+    if ((type & CHUNK_TYPE_SYSTEM) == CHUNK_TYPE_SYSTEM) {
         strcat(buffer, "SYSTEM");
     }
-    if((type & CHUNK_TYPE_METADATA) == CHUNK_TYPE_METADATA) {
+    if ((type & CHUNK_TYPE_METADATA) == CHUNK_TYPE_METADATA) {
         strcat(buffer, "METADATA");
     }
-    if((type & CHUNK_TYPE_RAID0) == CHUNK_TYPE_RAID0) {
+    if ((type & CHUNK_TYPE_RAID0) == CHUNK_TYPE_RAID0) {
         strcat(buffer, "RAID0");
     }
-    if((type & CHUNK_TYPE_RAID1) == CHUNK_TYPE_RAID1) {
+    if ((type & CHUNK_TYPE_RAID1) == CHUNK_TYPE_RAID1) {
         strcat(buffer, ",RAID1");
     }
-    if((type & CHUNK_TYPE_MIRRORED) == CHUNK_TYPE_MIRRORED) {
+    if ((type & CHUNK_TYPE_MIRRORED) == CHUNK_TYPE_MIRRORED) {
         strcat(buffer, ",MIRRORED");
     }
-    if((type & CHUNK_TYPE_RAID10) == CHUNK_TYPE_RAID10) {
+    if ((type & CHUNK_TYPE_RAID10) == CHUNK_TYPE_RAID10) {
         strcat(buffer, ",RAID10");
     }
 }
@@ -856,6 +853,34 @@ btrfs_io_read_extent_data_pa(BTRFS_INFO * btrfs_info,
     // Parse it
     btrfs_extent_data d;
     btrfs_io_parse_extent_data(data, &d);
+
+    return d;
+}
+
+btrfs_extent_item
+btrfs_io_read_extent_item_la(BTRFS_INFO * btrfs_info,
+        uint64_t logical_address, uint32_t size) {
+    uint64_t physical_address = btrfs_resolve_logical_address(btrfs_info,
+            logical_address);
+
+    return btrfs_io_read_extent_item_pa(btrfs_info, physical_address,
+            size);
+}
+
+btrfs_extent_item
+btrfs_io_read_extent_item_pa(BTRFS_INFO * btrfs_info,
+        uint64_t physical_address, uint32_t size) {
+    // Read the data from disk
+    char *data = tsk_malloc(size);
+    if (tsk_fs_read(&(btrfs_info->fs_info), physical_address, data,
+            size) != size) {
+        printf("read wrong number of bytes!!!");
+    }
+
+    // Parse it
+    btrfs_extent_item d = {};
+    btrfs_io_parse_extent_item(data, &d);
+    free(data);
 
     return d;
 }

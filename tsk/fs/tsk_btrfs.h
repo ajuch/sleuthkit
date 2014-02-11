@@ -1,15 +1,15 @@
 /*
-** tsk_btrfs.h
-** The  Sleuth Kit
-**
-** Header file of the Btrfs TSK implementation.
-**
-** Andreas Juch [andreas.juch@gmail.com]
-** Copyright (c) 2013-1014 Andreas Juch
-**
-** This software is distributed under the Common Public License 1.0
-**
-*/
+ ** tsk_btrfs.h
+ ** The  Sleuth Kit
+ **
+ ** Header file of the Btrfs TSK implementation.
+ **
+ ** Andreas Juch [andreas.juch@gmail.com]
+ ** Copyright (c) 2013-1014 Andreas Juch
+ **
+ ** This software is distributed under the Common Public License 1.0
+ **
+ */
 
 /**
  * \file tsk_btrfs.h
@@ -439,7 +439,8 @@ typedef struct {
 typedef struct {
     uint8_t type;
     char data[sizeof (btrfs_extent_data_ref)]; // extent_data_ref is the biggest inline ref
-} btrfs_extent_item_inline_ref;
+}
+btrfs_extent_item_inline_ref;
 
 typedef struct {
     /**
@@ -703,6 +704,10 @@ btrfs_dir_index btrfs_io_read_dir_index_pa(BTRFS_INFO * btrfs_info,
 btrfs_extent_data btrfs_io_read_extent_data_la(BTRFS_INFO * btrfs_info,
         uint64_t logical_address, uint32_t size);
 btrfs_extent_data btrfs_io_read_extent_data_pa(BTRFS_INFO * btrfs_info,
+        uint64_t physical_address, uint32_t size);
+btrfs_extent_item btrfs_io_read_extent_item_la(BTRFS_INFO * btrfs_info,
+        uint64_t logical_address, uint32_t size);
+btrfs_extent_item btrfs_io_read_extent_item_pa(BTRFS_INFO * btrfs_info,
         uint64_t physical_address, uint32_t size);
 btrfs_header btrfs_io_read_header_la(BTRFS_INFO * btrfs_info,
         uint64_t logical_address);
