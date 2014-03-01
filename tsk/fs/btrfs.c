@@ -1609,6 +1609,7 @@ btrfs_tsk_inode_lookup(TSK_FS_INFO * fs, TSK_FS_FILE * a_fs_file,
 
         // Set the TSK_FS_FILE attributes.
         a_fs_file->fs_info = fs;
+        a_fs_file->meta->flags = TSK_FS_META_FLAG_ALLOC;
         return 0;
     } else {
         printf("inode lookup fail\n");
