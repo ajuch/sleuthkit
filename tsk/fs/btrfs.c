@@ -952,8 +952,8 @@ btrfs_read_metadata(BTRFS_INFO * btrfs_info, btrfs_inode_item * ii,
         meta->addr = virtual_inode;
         meta->atime = ii->st_Atime.epoch_seconds;
         meta->atime_nano = ii->st_Atime.nanoseconds;
-        meta->crtime = ii->st_Ctime.epoch_seconds;
-        meta->crtime_nano = ii->st_Ctime.nanoseconds;
+        meta->ctime = ii->st_Ctime.epoch_seconds;
+        meta->ctime_nano = ii->st_Ctime.nanoseconds;
         meta->gid = ii->st_gid;
         meta->mtime = ii->st_Mtime.epoch_seconds;
         meta->mtime_nano = ii->st_Mtime.nanoseconds;
