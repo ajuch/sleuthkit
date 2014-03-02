@@ -960,6 +960,7 @@ btrfs_read_metadata(BTRFS_INFO * btrfs_info, btrfs_inode_item * ii,
         meta->uid = ii->st_uid;
         meta->size = ii->st_size;
         meta->mode = ii->st_mode;
+        meta->nlink = ii->st_nlink;
     }
 
     if (di) {
@@ -1502,7 +1503,7 @@ btrfs_tsk_block_getflags(TSK_FS_INFO * fs_info, TSK_DADDR_T a_addr) {
     BTRFS_INFO *btrfs_info = (BTRFS_INFO *) fs_info;
     uint64_t phys_addr = a_addr * btrfs_info->fs_info.block_size;
     uint64_t log_addr =
-            btrfs_resolve_logical_address(btrfs_info, phys_addr);
+            btrfs_resolve_physical_address(btrfs_info, phys_addr);
 
     char buf[1024] = "";
 
@@ -1545,7 +1546,7 @@ btrfs_tsk_block_getflags(TSK_FS_INFO * fs_info, TSK_DADDR_T a_addr) {
                     btrfs_io_print_extent_item(buf, &ei);
                     printf("%s\n", buf);
                     printf("unknown code %" PRIu64 "\n", ei.flags);
-                }
+            }
                 return TSK_FS_BLOCK_FLAG_ALLOC;
             }
         } else {
