@@ -959,6 +959,7 @@ btrfs_read_metadata(BTRFS_INFO * btrfs_info, btrfs_inode_item * ii,
         meta->mtime_nano = ii->st_Mtime.nanoseconds;
         meta->uid = ii->st_uid;
         meta->size = ii->st_size;
+        meta->mode = ii->st_mode;
     }
 
     if (di) {
