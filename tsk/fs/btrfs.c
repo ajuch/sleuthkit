@@ -429,17 +429,17 @@ btrfs_tsk_block_walk(TSK_FS_INFO * a_fs, TSK_DADDR_T a_start_blk,
 
         // check if the callback should be called
         if ((flags & TSK_FS_BLOCK_FLAG_META)
-                && (a_flags & TSK_FS_BLOCK_WALK_FLAG_META)) {
-            callback = 1;
+                && (!(a_flags & TSK_FS_BLOCK_WALK_FLAG_META))) {
+            continue;
         } else if ((flags & TSK_FS_BLOCK_FLAG_CONT)
-                && (a_flags & TSK_FS_BLOCK_WALK_FLAG_CONT)) {
-            callback = 1;
+                && (!(a_flags & TSK_FS_BLOCK_WALK_FLAG_CONT))) {
+            continue;
         } else if ((flags & TSK_FS_BLOCK_FLAG_ALLOC)
-                && (a_flags & TSK_FS_BLOCK_WALK_FLAG_ALLOC)) {
-            callback = 1;
+                && (!(a_flags & TSK_FS_BLOCK_WALK_FLAG_ALLOC))) {
+            continue;
         } else if ((flags & TSK_FS_BLOCK_FLAG_UNALLOC)
-                && (a_flags & TSK_FS_BLOCK_WALK_FLAG_UNALLOC)) {
-            callback = 1;
+                && (!(a_flags & TSK_FS_BLOCK_WALK_FLAG_UNALLOC))) {
+            continue;
         }
 
         if (a_flags & TSK_FS_BLOCK_WALK_FLAG_AONLY) {
@@ -453,15 +453,12 @@ btrfs_tsk_block_walk(TSK_FS_INFO * a_fs, TSK_DADDR_T a_start_blk,
             return 1;
         }
 
-        if (callback == 1) {
-            //printf("calling callback!\n");
-            int retval = a_action(fs_block, a_ptr);
-            if (retval == TSK_WALK_STOP) {
-                break;
-            } else if (retval == TSK_WALK_ERROR) {
-                tsk_fs_block_free(fs_block);
-                return 1;
-            }
+        int retval = a_action(fs_block, a_ptr);
+        if (retval == TSK_WALK_STOP) {
+            break;
+        } else if (retval == TSK_WALK_ERROR) {
+            tsk_fs_block_free(fs_block);
+            return 1;
         }
 
     }
@@ -1546,7 +1543,7 @@ btrfs_tsk_block_getflags(TSK_FS_INFO * fs_info, TSK_DADDR_T a_addr) {
                     btrfs_io_print_extent_item(buf, &ei);
                     printf("%s\n", buf);
                     printf("unknown code %" PRIu64 "\n", ei.flags);
-            }
+                }
                 return TSK_FS_BLOCK_FLAG_ALLOC;
             }
         } else {
