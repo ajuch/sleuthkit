@@ -419,11 +419,7 @@ btrfs_tsk_block_walk(TSK_FS_INFO * a_fs, TSK_DADDR_T a_start_blk,
     }
 
     // Iterate over the blocks.
-    uint8_t callback;
     for (addr = a_start_blk; addr <= a_end_blk; addr++) {
-        //printf("iterate over %llu \n" PRIuDADDR, addr);
-        callback = 0;
-
         TSK_FS_BLOCK_FLAG_ENUM flags =
                 btrfs_tsk_block_getflags(&(btrfs_info->fs_info), addr);
 
@@ -462,6 +458,8 @@ btrfs_tsk_block_walk(TSK_FS_INFO * a_fs, TSK_DADDR_T a_start_blk,
         }
 
     }
+    
+    tsk_fs_block_free(fs_block);
     return 0;
 }
 
@@ -1518,7 +1516,7 @@ btrfs_tsk_block_getflags(TSK_FS_INFO * fs_info, TSK_DADDR_T a_addr) {
         TAILQ_FOREACH(iter, &tlr, pointers) {
             if (iter->key.item_type == ITEM_TYPE_EXTENT_ITEM
                     && (iter->key.object_id <= log_addr
-                    && log_addr <=
+                    && log_addr <
                     (iter->key.object_id + iter->key.offset))) {
                 found = TRUE;
                 btrfs_extent_item ei2 =
